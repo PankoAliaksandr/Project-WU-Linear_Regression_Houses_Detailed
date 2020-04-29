@@ -1,0 +1,69 @@
+\documentclass{article}
+
+\title{Exercise 4}
+\author{Panko, Yakimchyk, Agafonov, Kurennoi}
+\date{14.06.2018}
+
+\begin{document}
+  <<warning = FALSE, message = FALSE>>=
+  coen <-read.csv(file.choose(),sep = "")
+  library("dynlm","lmtest")
+  coen <- ts(coen, start = c(1948,1), end = c(1966,4), frequency = 4)
+  @
+  Let's start with the regression of UK government security index as regressor and UK car production index as dependent variable:
+  <<>>=
+  regr <- dynlm(CAR~GSX,coen)
+  summary(regr)
+  AIC(regr)
+  @
+  Let's run the Breusch-Godfrey test:
+  <<>>==
+  lmtest::bgtest(regr)
+  @
+  The test shows that null hypothesis of no autocorrelation should be rejected.\\
+  \newline
+  \par
+  Let's give visual interpretation:
+  <<>>=
+  plot(coen[,"CAR"])
+  points(regr$fitted.values,col="blue")
+  @
+  It's obvious that the fitted values do not correspond well to the actual values. The revealed autocorrelation is a good candidate for the reason of it.\\
+  \newline
+  \par
+  So let's look at the plot of residuals of the model:
+  <<>>=
+  plot(regr$residuals)
+  @
+  It can be seen that the residuals are not stationary and they have different trends depending on the time period.
+  This graph also shows the autocorrelation among lags of residuals:
+  <<>>=
+  acf(regr$residuals)
+  pacf(regr$residuals)
+  @
+  To overcome autocorrelation, let's include lagged dependent variables in our model. Based on acf and pacf results, we can conclude that lags 1 and 2 periods could be used in the model. Let's try.
+  <<>>=
+  regr1 <- dynlm(CAR~L(CAR,1) + L(GSX,1) + L(GSX,2),coen)
+  summary(regr1)
+  
+  lmtest::bgtest(regr1)
+  AIC(regr1)
+  
+  plot(regr1$residuals)
+  
+  acf(regr1$residuals)
+  pacf(regr1$residuals)
+  @
+  The Breusch-Godfrey test now shows that autocorrelation is eliminated. The graphs show the same.
+  It is also noticeable that AIC decreased, so model became better.\\
+  \newline 
+  Let's examine how fitted values correspond to the actual values after including lagged dependent variables:
+  <<>>=
+  plot(coen[,"CAR"])
+  points(regr1$fitted.values,col="blue")
+  @
+  Clearly, fitted values now are very close to the actual, so the model was improved considerably.\\
+  \newline
+  \par
+
+\end{document}

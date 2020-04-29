@@ -1,0 +1,127 @@
+\documentclass{article}
+
+\title{Exercise 5}
+\author{Aliaksandr Panko, Nadzeya Yakimchyk, Nikolai Agafonov, Ilia Kurennoi}
+
+
+\begin{document}
+\SweaveOpts{concordance=TRUE}
+\maketitle
+<<>>=
+library("tseries")
+library("forecast")
+library("urca")
+seriesA <-read.csv("seriesA.csv",head=FALSE,sep = "")
+seriesA <- as.ts(seriesA)
+seriesB <-read.csv("seriesB.csv",head=FALSE,sep = "")
+seriesB <- as.ts(seriesB)
+@
+Let's start with seriesA.
+The graph shows that it has good chances to be stationary:
+<<fig=TRUE>>==
+plot(seriesA)
+@
+\newline
+Now let's perform the augmented Dickey-Fuller (ADF) test to check whether there is unitroot.
+\newline
+Enders, Applied Econometric Time Series, 2nd edition, p. 213 advices to start with the least restrictive of the plausible models (which will generally include a trend and drift) and use tau3 statistic to test the null hypothesis that $\gamma = 0$. Unit root tests have low power to reject the null  hypothesis; hence, if the null hypothesis of a unit root is rejected, there is no need to proceed further. So let's do it and use AIC to select lags:
+<<>>==
+summary(urca::ur.df(seriesA,type="trend",lags=7,selectlags = "AIC"))
+@
+Test statistic -10.129 is lower than critical values for any significance level considered, so we can reject the null and accept the alternative that the data is stationary.
+\newline
+Basically, the same conclusion can be drawn if we use ADF test from $tseries$ package with default settings (as we have seen on the lecture), which with more details can be replicated with $urca$ package if not use AIC to select lags (so test statistic is -7.0616, but still much lower than critical values):
+<<>>==
+tseries::adf.test(seriesA)
+summary(urca::ur.df(seriesA,type="trend",lags=7))
+@
+So we can use seriesA "as is" and fit ARMA model.
+Let's examine autocorrelations and partial autocorrelations:
+<<fig=TRUE>>==
+acf(seriesA)
+@
+<<fig=TRUE>>==
+pacf(seriesA)
+@
+\newline
+Partial autocorrelations cut off at lag 2, so we take p=2.
+Autocorrelations show exponential decay (oscillating).
+So let's fit the model AR(2):
+<<>>==
+modelA <- arima(seriesA, order = c(2,0,0))
+summary(modelA)
+@
+The graphs show that there is no autocorrelation:
+<<fig=TRUE>>==
+acf(resid(modelA))
+@
+<<fig=TRUE>>==
+pacf(resid(modelA))
+@
+\newline
+And it is confirmed by Ljung-Box test:
+<<>>==
+Box.test(resid(modelA),type="Ljung",lag=20,fitdf=1)
+@
+\newline
+Now let's analyize series B.
+\newline
+The graph shows that it is likely to be nonstationary:
+<<fig=TRUE>>==
+plot(seriesB)
+@
+\newline
+Let's run the test:
+<<>>==
+summary(urca::ur.df(seriesB,type="trend",lags=7,selectlags = "AIC"))
+@
+-1.8602 is larger than critical values for tau3, so the null hypothesis that there is a unit root is accepted.
+\newline
+1.7365 is less than critical values for phi3, so the null hypothesis that there is a unit root AND no-trend (without trend) is accepted.
+\newline
+1.5066 is less than critical values for phi2, so the null hypothesis hypothesis that there is a unit root without trend and without drift is accepted.
+\newline
+So we conclude that seriesB is not stationary.
+\newline
+To run ARMA let's make series B stationary by taking differences:
+<<>>==
+difB <- diff(seriesB)
+@
+\newline
+Let's run the test again:
+<<>>==
+summary(urca::ur.df(difB,type="trend",lags=7,selectlags = "AIC"))
+@
+So difB is stationary.
+<<fig=TRUE>>==
+acf(difB)
+@
+\newline
+<<fig=TRUE>>==
+pacf(difB)
+@
+\newline
+The graphs of autocorrelations and partial autocorrelations do not really fit patterns which are described in the table in lecture notes, p. 103. We use the following function to choose the model:
+<<>>==
+  forecast::auto.arima(difB, seasonal=FALSE)
+@
+\newline
+Let's fit the model:
+<<>>==
+modelB <- arima(difB, order = c(3,0,0))
+summary(modelB)
+@
+The graphs show that there is no autocorrelation:
+<<fig=TRUE>>==
+acf(resid(modelB))
+@
+<<fig=TRUE>>==
+pacf(resid(modelB))
+@
+\newline
+And it is confirmed by Ljung-Box test:
+<<>>==
+Box.test(resid(modelB),type="Ljung",lag=20,fitdf=1)
+@
+
+\end{document}
